@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenRouter Logs</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --border: #2a2a3a;
+    --border2: #3a3a50;
+    --accent: #7c6af7;
+    --accent2: #a594ff;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e8e8f0;
+    --text2: #9898b0;
+    --text3: #5a5a78;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(124,106,247,0.015) 2px,
+      rgba(124,106,247,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-area h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent2), #c4b5fd, var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo-area p {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+    margin-top: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Config panel */
+  .config-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .config-panel h3 {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 16px;
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--accent);
+  }
+
+  .field input::placeholder {
+    color: var(--text3);
+  }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  .filter-group label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    min-width: 140px;
+  }
+
+  .filter-group select option {
+    background: var(--bg3);
+    color: var(--text);
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent2);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--border2);
+    color: var(--text);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .stat-card:nth-child(2)::before { background: var(--green); }
+  .stat-card:nth-child(3)::before { background: var(--yellow); }
+  .stat-card:nth-child(4)::before { background: #f472b6; }
+
+  .stat-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--mono);
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    margin-top: 4px;
+  }
+
+  /* Table */
+  .table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .table-header h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .count-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  thead th.sortable:hover {
+    color: var(--text2);
+  }
+
+  thead th.sorted {
+    color: var(--accent2);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: rgba(124,106,247,0.04);
+  }
+
+  tbody td {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text2);
+    vertical-align: middle;
+  }
+
+  .td-id {
+    color: var(--text3);
+    font-size: 11px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .td-model {
+    color: var(--accent2);
+    font-size: 12px;
+  }
+
+  .td-user {
+    color: var(--green);
+    font-size: 12px;
+  }
+
+  .td-cost {
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  .td-tokens {
+    color: var(--text);
+  }
+
+  .td-time {
+    color: var(--text3);
+    font-size: 11px;
+  }
+
+  .td-date {
+    color: var(--text2);
+    font-size: 11px;
+  }
+
+  /* Empty / loading states */
+  .empty-state {
+    text-align: center;
+    padding: 64px 20px;
+  }
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-state h3 {
+    font-size: 15px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .empty-state p {
+    font-size: 13px;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  .loading-row td {
+    text-align: center;
+    padding: 48px;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Error */
+  .error-bar {
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .pagination-info {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text3);
+  }
+
+  .pagination-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .page-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    transition: all 0.15s;
+  }
+
+  .page-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+
+  .page-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .page-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Source tabs */
+  .source-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .source-tab {
+    padding: 7px 16px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    transition: all 0.2s;
+    font-family: var(--sans);
+  }
+
+  .source-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .source-tab:hover:not(.active) {
+    color: var(--text);
+  }
+
+  /* Tag */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: var(--mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .tag-proxy {
+    background: rgba(74,222,128,0.12);
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,0.25);
+  }
+
+  .tag-activity {
+    background: rgba(124,106,247,0.12);
+    color: var(--accent2);
+    border: 1px solid rgba(124,106,247,0.25);
+  }
+
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .config-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .header { flex-direction: column; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="app">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-area">
+        <h1>OpenRouter Logs</h1>
+        <p><span class="status-dot"></span>monitoring dashboard</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-ghost" @click="clearLogs">Очистить</button>
+        <button class="btn btn-primary" @click="fetchData" :disabled="loading || !apiKey">
+          <span v-if="loading"><span class="spinner"></span>Загрузка...</span>
+          <span v-else">↻ Обновить</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Config -->
+    <div class="config-panel">
+      <h3>// Конфигурация</h3>
+      <div class="config-grid">
+        <div class="field">
+          <label>API Key (OpenRouter)</label>
+          <input v-model="apiKey" type="password" placeholder="sk-or-v1-..." />
+        </div>
+        <div class="field">
+          <label>Прокси URL (необязательно)</label>
+          <input v-model="proxyUrl" type="text" placeholder="https://your-proxy.workers.dev" />
+        </div>
+        <button class="btn btn-primary" @click="fetchData" :disabled="loading || !apiKey" style="height:42px">
+          Обновить
+        </button>
+      </div>
+    </div>
+
+    <!-- Source tabs -->
+    <div class="source-tabs">
+      <button class="source-tab" :class="{active: source === 'proxy'}" @click="source = 'proxy'">
+        Прокси-логи
+      </button>
+      <button class="source-tab" :class="{active: source === 'activity'}" @click="source = 'activity'">
+        OpenRouter Activity
+      </button>
+    </div>
+
+    <!-- Error -->
+    <div class="error-bar" v-if="error">
+      ⚠ {{ error }}
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label>external_user</label>
+        <input v-model="filterUser" placeholder="Фильтр по user..." @input="currentPage = 1" />
+      </div>
+      <div class="filter-group">
+        <label>Модель</label>
+        <input v-model="filterModel" placeholder="Фильтр по модели..." @input="currentPage = 1" />
+      </div>
+      <div class="filter-group" v-if="source === 'activity'">
+        <label>Дата</label>
+        <input type="date" v-model="filterDate" @change="fetchData" />
+      </div>
+      <div class="filter-group">
+        <label>Показывать</label>
+        <select v-model="pageSize" @change="currentPage = 1">
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost" @click="resetFilters" style="padding:8px 14px;font-size:12px">
+        Сбросить
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" v-if="allLogs.length > 0">
+      <div class="stat-card">
+        <div class="stat-label">Всего запросов</div>
+        <div class="stat-value">{{ filteredLogs.length }}</div>
+        <div class="stat-sub">из {{ allLogs.length }} total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Общая стоимость</div>
+        <div class="stat-value">${{ totalCost }}</div>
+        <div class="stat-sub">filtered result</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Токены</div>
+        <div class="stat-value">{{ totalTokens.toLocaleString() }}</div>
+        <div class="stat-sub">prompt + completion</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Уникальных users</div>
+        <div class="stat-value">{{ uniqueUsers }}</div>
+        <div class="stat-sub">в выборке</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>
+          {{ source === 'proxy' ? 'Логи прокси' : 'Activity OpenRouter' }}
+          <span class="count-badge">{{ filteredLogs.length }} записей</span>
+        </h3>
+        <span class="tag" :class="source === 'proxy' ? 'tag-proxy' : 'tag-activity'">
+          {{ source === 'proxy' ? 'PROXY' : 'OPENROUTER' }}
+        </span>
+      </div>
+
+      <!-- Proxy logs table -->
+      <table v-if="source === 'proxy'">
+        <thead>
+          <tr>
+            <th class="sortable" @click="setSort('id')" :class="{sorted: sortBy === 'id'}">ID</th>
+            <th class="sortable" @click="setSort('external_user')" :class="{sorted: sortBy === 'external_user'}">
+              external_user {{ sortBy === 'external_user' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}
+            </th>
+            <th class="sortable" @click="setSort('model')" :class="{sorted: sortBy === 'model'}">Модель</th>
+            <th class="sortable" @click="setSort('prompt_tokens')" :class="{sorted: sortBy === 'prompt_tokens'}">Prompt tkn</th>
+            <th class="sortable" @click="setSort('completion_tokens')" :class="{sorted: sortBy === 'completion_tokens'}">Compl tkn</th>
+            <th class="sortable" @click="setSort('cost')" :class="{sorted: sortBy === 'cost'}">
+              Стоимость {{ sortBy === 'cost' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}
+            </th>
+            <th>Время</th>
+            <th>Дата</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="loading-row">
+            <td colspan="8">
+              <span class="spinner"></span>
+              Загрузка данных...
+            </td>
+          </tr>
+          <template v-else-if="pagedLogs.length > 0">
+            <tr v-for="log in pagedLogs" :key="log.id">
+              <td><span class="td-id" :title="log.id">{{ log.id ? log.id.slice(0, 12) + '...' : '—' }}</span></td>
+              <td><span class="td-user">{{ log.external_user || log.user || '—' }}</span></td>
+              <td><span class="td-model">{{ log.model || '—' }}</span></td>
+              <td><span class="td-tokens">{{ (log.prompt_tokens || 0).toLocaleString() }}</span></td>
+              <td><span class="td-tokens">{{ (log.completion_tokens || 0).toLocaleString() }}</span></td>
+              <td><span class="td-cost">${{ formatCost(log.cost || log.usage || 0) }}</span></td>
+              <td><span class="td-time">{{ formatDuration(log.latency) }}</span></td>
+              <td><span class="td-date">{{ formatDate(log.created_at || log.date) }}</span></td>
+            </tr>
+          </template>
+          <tr v-else>
+            <td colspan="8">
+              <div class="empty-state">
+                <div class="empty-icon">◉</div>
+                <h3>Нет данных</h3>
+                <p>{{ allLogs.length > 0 ? 'Попробуй изменить фильтры' : 'Введи API Key и нажми Загрузить' }}</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Activity table -->
+      <table v-else>
+        <thead>
+          <tr>
+            <th class="sortable" @click="setSort('date')" :class="{sorted: sortBy === 'date'}">
+              Дата {{ sortBy === 'date' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}
+            </th>
+            <th class="sortable" @click="setSort('model')" :class="{sorted: sortBy === 'model'}">Модель</th>
+            <th>Провайдер</th>
+            <th class="sortable" @click="setSort('requests')" :class="{sorted: sortBy === 'requests'}">Запросы</th>
+            <th class="sortable" @click="setSort('prompt_tokens')" :class="{sorted: sortBy === 'prompt_tokens'}">Prompt tkn</th>
+            <th class="sortable" @click="setSort('completion_tokens')" :class="{sorted: sortBy === 'completion_tokens'}">Compl tkn</th>
+            <th class="sortable" @click="setSort('usage')" :class="{sorted: sortBy === 'usage'}">
+              Стоимость {{ sortBy === 'usage' ? (sortDir === 'asc' ? '↑' : '↓') : '' }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="loading-row">
+            <td colspan="7">
+              <span class="spinner"></span>
+              Загрузка данных...
+            </td>
+          </tr>
+          <template v-else-if="pagedLogs.length > 0">
+            <tr v-for="log in pagedLogs" :key="log.date + log.model">
+              <td><span class="td-date">{{ log.date }}</span></td>
+              <td><span class="td-model">{{ log.model || '—' }}</span></td>
+              <td><span class="td-time">{{ log.provider_name || '—' }}</span></td>
+              <td><span class="td-tokens">{{ (log.requests || 0).toLocaleString() }}</span></td>
+              <td><span class="td-tokens">{{ (log.prompt_tokens || 0).toLocaleString() }}</span></td>
+              <td><span class="td-tokens">{{ (log.completion_tokens || 0).toLocaleString() }}</span></td>
+              <td><span class="td-cost">${{ formatCost(log.usage || 0) }}</span></td>
+            </tr>
+          </template>
+          <tr v-else>
+            <td colspan="7">
+              <div class="empty-state">
+                <div class="empty-icon">◉</div>
+                <h3>Нет данных</h3>
+                <p>{{ allLogs.length > 0 ? 'Попробуй изменить фильтры' : 'Введи API Key и нажми Загрузить' }}</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination" v-if="totalPages > 1">
+        <span class="pagination-info">
+          {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, filteredLogs.length) }}
+          из {{ filteredLogs.length }}
+        </span>
+        <div class="pagination-btns">
+          <button class="page-btn" @click="currentPage = 1" :disabled="currentPage === 1">«</button>
+          <button class="page-btn" @click="currentPage--" :disabled="currentPage === 1">‹</button>
+          <button
+            v-for="p in visiblePages"
+            :key="p"
+            class="page-btn"
+            :class="{active: p === currentPage}"
+            @click="currentPage = p"
+          >{{ p }}</button>
+          <button class="page-btn" @click="currentPage++" :disabled="currentPage === totalPages">›</button>
+          <button class="page-btn" @click="currentPage = totalPages" :disabled="currentPage === totalPages">»</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, watch } = Vue;
+
+createApp({
+  setup() {
+    const apiKey = ref('');
+    const proxyUrl = ref('https://openrouter-proxy.ivromanovich.workers.dev');
+    const source = ref('proxy');
+    const loading = ref(false);
+    const error = ref('');
+    const allLogs = ref([]);
+    const filterUser = ref('');
+    const filterModel = ref('');
+    const filterDate = ref('');
+    const sortBy = ref('created_at');
+    const sortDir = ref('desc');
+    const currentPage = ref(1);
+    const pageSize = ref(20);
+
+    // Fetch data based on source
+    async function fetchData() {
+      if (!apiKey.value) { error.value = 'Введи API Key'; return; }
+      loading.value = true;
+      error.value = '';
+      allLogs.value = [];
+
+      try {
+        if (source.value === 'proxy') {
+          await fetchProxyLogs();
+        } else {
+          await fetchActivityLogs();
+        }
+      } catch (e) {
+        error.value = e.message || 'Ошибка при загрузке данных';
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    async function fetchProxyLogs() {
+      const url = proxyUrl.value ? `${proxyUrl.value.replace(/\/$/, '')}/logs` : null;
+      if (!url) {
+        throw new Error('Укажи URL прокси для получения логов');
+      }
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey.value}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Прокси вернул ${res.status}: ${txt.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      // Support various response shapes: array, { logs: [] }, { data: [] }
+      allLogs.value = Array.isArray(data)
+        ? data
+        : (data.logs || data.data || data.results || []);
+    }
+
+    async function fetchActivityLogs() {
+      let url = 'https://openrouter.ai/api/v1/activity';
+      if (filterDate.value) url += `?date=${filterDate.value}`;
+
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${apiKey.value}` }
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`OpenRouter API ${res.status}: ${txt.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      allLogs.value = data.data || [];
+    }
+
+    // Filtering
+    const filteredLogs = computed(() => {
+      let logs = [...allLogs.value];
+
+      if (filterUser.value.trim()) {
+        const q = filterUser.value.trim().toLowerCase();
+        logs = logs.filter(l => {
+          const u = (l.external_user || l.user || '').toLowerCase();
+          return u.includes(q);
+        });
+      }
+
+      if (filterModel.value.trim()) {
+        const q = filterModel.value.trim().toLowerCase();
+        logs = logs.filter(l => (l.model || '').toLowerCase().includes(q));
+      }
+
+      // Sorting
+      logs.sort((a, b) => {
+        let va = a[sortBy.value] ?? '';
+        let vb = b[sortBy.value] ?? '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortDir.value === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir.value === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      return logs;
+    });
+
+    // Pagination
+    const totalPages = computed(() => Math.ceil(filteredLogs.value.length / pageSize.value));
+
+    const pagedLogs = computed(() => {
+      const start = (currentPage.value - 1) * pageSize.value;
+      return filteredLogs.value.slice(start, start + pageSize.value);
+    });
+
+    const visiblePages = computed(() => {
+      const total = totalPages.value;
+      const cur = currentPage.value;
+      const pages = [];
+      for (let i = Math.max(1, cur - 2); i <= Math.min(total, cur + 2); i++) {
+        pages.push(i);
+      }
+      return pages;
+    });
+
+    // Stats
+    const totalCost = computed(() => {
+      const sum = filteredLogs.value.reduce((acc, l) => acc + (l.cost || l.usage || 0), 0);
+      return sum.toFixed(6);
+    });
+
+    const totalTokens = computed(() => {
+      return filteredLogs.value.reduce((acc, l) =>
+        acc + (l.prompt_tokens || 0) + (l.completion_tokens || 0), 0);
+    });
+
+    const uniqueUsers = computed(() => {
+      const users = new Set(filteredLogs.value.map(l => l.external_user || l.user).filter(Boolean));
+      return users.size;
+    });
+
+    // Sort
+    function setSort(col) {
+      if (sortBy.value === col) {
+        sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortBy.value = col;
+        sortDir.value = 'desc';
+      }
+    }
+
+    function resetFilters() {
+      filterUser.value = '';
+      filterModel.value = '';
+      filterDate.value = '';
+      currentPage.value = 1;
+    }
+
+    function clearLogs() {
+      allLogs.value = [];
+      error.value = '';
+    }
+
+    // Formatting
+    function formatCost(val) {
+      const n = parseFloat(val) || 0;
+      return n < 0.000001 ? '0.000000' : n.toFixed(6);
+    }
+
+    function formatDate(val) {
+      if (!val) return '—';
+      try {
+        return new Date(val).toLocaleString('ru-RU', {
+          day: '2-digit', month: '2-digit', year: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        });
+      } catch { return val; }
+    }
+
+    function formatDuration(ms) {
+      if (!ms) return '—';
+      if (ms < 1000) return `${ms}ms`;
+      return `${(ms / 1000).toFixed(1)}s`;
+    }
+
+    // Reset page on filter change
+    watch([filterUser, filterModel], () => { currentPage.value = 1; });
+    watch(source, () => { allLogs.value = []; error.value = ''; currentPage.value = 1; });
+
+    return {
+      apiKey, proxyUrl, source, loading, error,
+      allLogs, filterUser, filterModel, filterDate,
+      sortBy, sortDir, currentPage, pageSize,
+      filteredLogs, pagedLogs, totalPages, visiblePages,
+      totalCost, totalTokens, uniqueUsers,
+      fetchData, setSort, resetFilters, clearLogs,
+      formatCost, formatDate, formatDuration
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
