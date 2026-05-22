@@ -281,7 +281,7 @@ h1 {
 
 .layout {
   display: grid;
-  grid-template-columns: 520px minmax(0, 1fr);
+  grid-template-columns: 750px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
