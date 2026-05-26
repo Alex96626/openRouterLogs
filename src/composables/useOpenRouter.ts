@@ -3,9 +3,10 @@ import type { Client, AiEvent } from '../types'
 
 const URL = import.meta.env.VITE_OR_URL?.trim()
 const API_KEY = import.meta.env.VITE_OR_API_KEY?.trim()
+const BFL_API_KEY = import.meta.env.VITE_BFL_API_KEY?.trim()
 
-const PROFILE_URL = 'https://api.k8s.cloud.bfl-soft.com/user-profile/users'
-const STATUS_URL = 'https://api.k8s.cloud.bfl-soft.com/user-status/statuses'
+const PROFILE_URL = 'https://api-bfldocs.bfl-soft.com/api/kval//user-profile/users'
+const STATUS_URL = 'https://api-bfldocs.bfl-soft.com/api/kval//user-status/statuses'
 
 // Кэш guid → отображаемое имя, живёт на всё время сессии
 const nameCache = new Map<string, string>()
@@ -45,7 +46,7 @@ async function fetchUserName(guid: string): Promise<string> {
 
   try {
     const res = await fetch(`${PROFILE_URL}/${guid}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
+      headers: { Authorization: `Bearer ${BFL_API_KEY}` },
     })
     if (!res.ok) {
       const body = await res.text().catch(() => '')
@@ -100,7 +101,7 @@ async function fetchUserStatus(guid: string): Promise<string> {
 
   try {
     const res = await fetch(`${STATUS_URL}/${guid}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
+      headers: { Authorization: `Bearer ${BFL_API_KEY}` },
     })
     if (!res.ok) {
       const body = await res.text().catch(() => '')

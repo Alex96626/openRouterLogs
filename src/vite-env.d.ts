@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_OR_URL: string
   readonly VITE_OR_API_KEY: string
+  readonly VITE_BFL_API_KEY: string
 }
 
 interface ImportMeta {
