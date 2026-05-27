@@ -1,12 +1,23 @@
 import { ref } from 'vue'
+import axios from 'axios'
 import type { Client, AiEvent } from '../types'
 
-const URL = import.meta.env.VITE_OR_URL?.trim()
-const API_KEY = import.meta.env.VITE_OR_API_KEY?.trim()
 const BFL_API_KEY = import.meta.env.VITE_BFL_API_KEY?.trim()
 
-const PROFILE_URL = 'https://api-bfldocs.bfl-soft.com/api/kval//user-profile/users'
-const STATUS_URL = 'https://api-bfldocs.bfl-soft.com/api/kval//user-status/statuses'
+const PROXY_BASE = 'https://crm.fcb.expert/local/app/crm/ContactDocumentsForm/proxy.php'
+
+const n8nHttp = axios.create({
+  baseURL: `${PROXY_BASE}?path=/n8n/`,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+const bflHttp = axios.create({
+  baseURL: 'https://api-bfldocs.bfl-soft.com/api/kval/',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${BFL_API_KEY}`,
+  },
+})
 
 // Кэш guid → отображаемое имя, живёт на всё время сессии
 const nameCache = new Map<string, string>()
@@ -45,25 +56,17 @@ async function fetchUserName(guid: string): Promise<string> {
   if (nameCache.has(guid)) return nameCache.get(guid)!
 
   try {
-    const res = await fetch(`${PROFILE_URL}/${guid}`, {
-      headers: { Authorization: `Bearer ${BFL_API_KEY}` },
-    })
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`profile ${res.status}: ${body.slice(0, 200)}`)
-    }
-
-    const json = await res.json() as UserProfile
+    const { data: json } = await bflHttp.get<UserProfile>(`user-profile/users/${guid}`)
     if (!json.success || !json.data) throw new Error('profile: no data')
 
     const { first_name, last_name, patronymic } = json.data
-    const name = [last_name, first_name, patronymic].filter(Boolean).join(' ') || guid
+    const name = [last_name, first_name, patronymic].filter(Boolean).join(' ') || 'User'
     nameCache.set(guid, name)
     return name
   } catch (e) {
     // не кэшируем ошибку — следующий вызов повторит запрос
     console.warn('[profile]', guid, (e as Error).message)
-    return guid
+    return 'User'
   }
 }
 
@@ -100,15 +103,7 @@ async function fetchUserStatus(guid: string): Promise<string> {
   if (statusCache.has(guid)) return statusCache.get(guid)!
 
   try {
-    const res = await fetch(`${STATUS_URL}/${guid}`, {
-      headers: { Authorization: `Bearer ${BFL_API_KEY}` },
-    })
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`status ${res.status}: ${body.slice(0, 200)}`)
-    }
-
-    const json = await res.json() as UserStatus
+    const { data: json } = await bflHttp.get<UserStatus>(`user-status/statuses/${guid}`)
     const value = json.data?.step_type?.value
     if (!value) throw new Error('status: no step_type.value')
 
@@ -147,16 +142,14 @@ export function useOpenRouter() {
     error.value = ''
 
     try {
-      const res = await fetch(URL, {
-        headers: { Authorization: `Bearer ${API_KEY}` },
-      })
+      // TEST
+      axios.get(`${PROXY_BASE}?path=/kval/admin-api/index.php&resource=stories`)
+        .then(r => console.log('[stories test]', r.data))
+        .catch(e => console.warn('[stories test error]', e))
 
-      if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(`${res.status}: ${txt.slice(0, 150)}`)
-      }
-
-      const data = await res.json() as LogRecord[]
+      const data = await n8nHttp.get<LogRecord[]>('openRouter/log/get', {
+        headers: { 'Content-Type': 'application/json' },
+      }).then(r => r.data)
       const clients = logsToClients(data)
 
       const guids = clients.map(c => c.name) // имена пока = guid
